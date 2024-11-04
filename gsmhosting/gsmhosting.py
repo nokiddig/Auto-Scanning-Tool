@@ -1,25 +1,15 @@
-# %% [markdown]
-# ### Logger
-
-# %%
 with open('../common/logger.py') as f:
     exec(f.read())
 
 logger = get_logger(name='gsm')
 logger.info('Start crawl gsm-forum')
-
-# %% [markdown]
 # ### Import
-
-# %%
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 
 import os
 import sys
 import importlib
-
-# %%
 def get_module(module_name, file_name):
     name = file_name.split('.')[0]
 
@@ -29,7 +19,6 @@ def get_module(module_name, file_name):
     spec.loader.exec_module(module)
     return module
 
-# %%
 try:
     driver_module = get_module('common', 'web_driver.py')
     get_driver = driver_module.get_driver
@@ -38,10 +27,8 @@ except ImportError as e:
 except Exception as e:
     logger.error(e)
 
-# %% [markdown]
 # ### Crawl selenium
 
-# %%
 try:
     driver = get_driver()
     driver.get("https://forum.gsmhosting.com/vbb/f209/")
@@ -49,8 +36,6 @@ except Exception as e:
     logger.error(f'Init driver fail: {e}')
     sys.exit()
 
-
-# %%
 links = []
 try:
     raw_links = driver.find_elements(By.CLASS_NAME, "alt1Active")
@@ -65,15 +50,12 @@ except Exception as e:
     logger.error(f'Crawl selenium: {e}')
     
 
-
-# %%
 DAY = 1
 MONTH = 7
 YEAR = 2024
 
 KEY_WORDS = ["unlock", "hack", "samsung", "s2", "flip", "fold", "knox"]
 
-# %%
 import re
 import datetime
 from time import strptime
@@ -119,10 +101,10 @@ def get_threads_from_link(wdriver, link):
 
     return thread_links_by_keywords
 
-# %%
+
 driver.implicitly_wait(20)
 
-# %%
+
 total_thread_links = []
 try: 
     for link in (links):
@@ -137,10 +119,8 @@ try:
 except Exception as e:
     logger.error(f'total_thread_links: {e}')
 
-# %% [markdown]
-# ### Get comment
 
-# %%
+# ### Get comment
 from time import sleep
 def getDataByLink(driver,url = ''):
     driver.get(url)
@@ -165,7 +145,7 @@ def getDataByLink(driver,url = ''):
         list_answers.append(content)
     return list_answers
 
-# %%
+
 list_answers = []
 try:
     for i, thread_link in enumerate(total_thread_links):
@@ -175,7 +155,7 @@ try:
 except Exception as e:
     logger.error(f'Get data by link: {e}')
 
-# %%
+
 COL_TYPE = 'Type'
 COL_LINK = 'Link'
 COL_PUBLISHED = 'Published at'
@@ -183,7 +163,7 @@ COL_TITLE = 'Title'
 COL_CONTENT = 'Content'
 COL_SUMMARY = 'Summary'
 
-# %%
+
 # collect data
 MIN_WORDS = 30
 data = []
@@ -200,32 +180,16 @@ for i, thread_link in enumerate(total_thread_links):
     if len(comment) >= MIN_WORDS:
         data.append(row)
 
-# %%
-list_answers
-
-# %%
-driver.quit()
-
-# %% [markdown]
 # ### Genai
-
-# %%
 from time import sleep
 
-# %%
+
 genai_module = get_module('common', 'genai.py')
 Genai = genai_module.Genai
-
-# %%
 genai = Genai()
 
-# %%
-data
-
-# %% [markdown]
 # ### Insert data
 
-# %%
 #summary
 list_summary = []
 
@@ -244,7 +208,6 @@ try:
 except Exception as e:
     logger.error(f'Genai summary: {e}')
 
-# %%
 for i, row in enumerate(data):
     if i<len(list_summary):
         row[COL_SUMMARY] = ''.join(list_summary[i])
