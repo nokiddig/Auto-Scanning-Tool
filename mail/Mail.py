@@ -1,37 +1,49 @@
-# %%
-import importlib.util
+# ==========================================================
+# ======================== Import ==========================
+# ==========================================================
+
 import os
-module_internal_path = os.path.join(os.getcwd(), '..', 'internal', 'variable.py')
-spec = importlib.util.spec_from_file_location("variable", module_internal_path)
-module_internal = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module_internal)
-
-MAILER_SENDER_SINGLEID = 'SecurityToolSystem'
-MAILER_SENDER_PASSWORD = module_internal.PASSWORD
-
-with open('../common/logger.py') as f:
-    exec(f.read())
-
-logger = get_logger(name='mail')
-
-# %%
 import smtplib
 import sqlite3 as lite
+import importlib.util
+from config import *
+from datetime import datetime
 from email import encoders
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
-from config import *
 
-from datetime import datetime
+# Run file logger.py to create logger object with prefix 'mail'
+with open('../common/logger.py') as f:
+    exec(f.read())
+logger = get_logger(name='mail')
 
-# %%
+
+# Import a module from another directory
+def get_module(folder_name, file_name):
+    module_name = file_name.split('.')[0]
+    module_path = os.path.join(os.getcwd(), '..', folder_name, file_name)
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+# ==========================================================
+# ======================= Init data ========================
+# ==========================================================
+
+# From input import sender, receiver, subject,...
+input_module = get_module('internal', 'mail_input.py')
+MAILER_SENDER_SINGLEID = input_module.MAILER_SENDER_SINGLEID
+MAILER_SENDER_PASSWORD = input_module.MAILER_SENDER_PASSWORD
+MAILLIST_TO = input_module.MAILLIST_TO
+MAILLIST_CC = input_module.MAILLIST_CC
+MAIL_PREFIX = input_module.MAIL_PREFIX
+
+
 RECIPIENT_FROM_CONFIG = 0
 RECIPIENT_FROM_DATABASE = 1
 RECIPIENT_ONLY_MAINTAINERS = 2
-MAIL_PREFIX = 'SAT'
-MAILLIST_TO = ['vansy.le@samsung.com', 'thuy.ptt@samsung.com']# 'huy.nq2@samsung.com']
-MAILLIST_CC = []
 MONITOR_MAINTAINER_MAILLIST = []
 IGNORE_MALWARE = [
     "not-a-malware-app",
@@ -39,18 +51,18 @@ IGNORE_MALWARE = [
     "trusted-app"
 ]
 
-# %%
-# Mail content
-today = datetime.today().date()
-file_path = f'../output/output_{today}.xlsx'
 
-str_today = today.strftime('%Y.%m.%d')
-MAIL_SUBJECT = f'Auto Scanning Result of {str_today}'
-MAIL_BODY = 'Hello!\nThis is an automated email sent by system about new KG unlock case reported in this week. Please check the attachment for detail!\nThank you.'
-ATTACHMENT = [file_path]
+# Init mail content.
+MAIL_SUBJECT = input_module.MAIL_SUBJECT
+MAIL_BODY = input_module.MAIL_BODY
+ATTACHMENT = input_module.ATTACHMENT
 
-# %%
+# ==========================================================
+# ======================== Mail ============================
+# ==========================================================
+
 class Mail:
+    # Init mail object and set sender, smtp server and port.
     def __init__(self):
         self.message = MIMEMultipart()
         self.smtp_server = "smtpsys.samsung.net"
@@ -87,6 +99,8 @@ class Mail:
         self.receivers.extend(receivers)
         return self
 
+    # Add attachments to mail.
+    # Attachments should be a list of file paths.
     def setAttachment(self, attachment: list[str]):
         self.attachments = attachment
         for _path in self.attachments:
@@ -138,7 +152,8 @@ class Mail:
             # sv.login(self.sender, self.pwd)
             sv.sendmail(self.sender, self.receivers, self.message.as_string())
 
-# %%
+
+# Send mail to all members and CC to those who want to receive it.
 try:
     mail = Mail()
     mail.setTo(MAILLIST_TO)
@@ -147,9 +162,6 @@ try:
     mail.setBody(MAIL_BODY)
     mail.setAttachment(ATTACHMENT)
     mail.sendMail()
-    logger.info('Mail sent successful')
+    logger.info('Mail was sent successfully')
 except Exception as e:
-    print(e)
-    logger.error(e)
-
-
+    logger.error(f"Fail to send mail: {e}")
